@@ -1,0 +1,26 @@
+# ambiente virtual
+.venv/
+
+# cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# notebooks
+.ipynb_checkpoints/
+
+# arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# variáveis de ambiente
+.env
+
+# saídas temporárias de notebook
+*_out.ipynb
+
+# manter controle da pasta data, mas ignorar o que não quiser versionar
+data/*
+!data/Planilha_PL_CGNOR.xlsx
+!data/df_final_bicameral.csv
