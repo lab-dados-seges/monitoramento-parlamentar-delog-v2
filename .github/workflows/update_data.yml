@@ -1,0 +1,47 @@
+name: Atualizar dados do monitoramento parlamentar
+
+on:
+  schedule:
+    # 06:01 em Brasília/Palmas (UTC-3) = 09:01 UTC
+    - cron: "1 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atualizar-monitoramento-parlamentar
+  cancel-in-progress: false
+
+jobs:
+  atualizar-dados:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Instalar dependências extras
+        run: |
+          pip install papermill jupyter nbconvert
+
+      - name: Executar notebook
+        run: |
+          papermill tratar_dados_v2.ipynb tratar_dados_v2_saida.ipynb
+
+      - name: Commitar arquivos alterados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "Atualiza dados automaticamente"
+
+      - name: Enviar alterações
+        run: |
+          git push
