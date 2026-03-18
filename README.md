@@ -4,6 +4,8 @@
 
 Este projeto é um aplicativo web desenvolvido em Streamlit para monitoramento e acompanhamento de projetos de lei no Congresso Nacional Brasileiro. O sistema permite consultar proposições legislativas previamente cadastradas pela Coordenação-Geral de Normas (CGNOR), obter informações detalhadas e acompanhar a tramitação tanto na Câmara dos Deputados quanto no Senado Federal.
 
+Link Principal: https://monitora-parlamentar-seges-v2.streamlit.app/
+
 ### Principais Funcionalidades
 
 - **Consulta de Proposições**: Busca e exibição de projetos de lei com informações completas sobre tramitação, pareceres, emendas e substitutivos.
