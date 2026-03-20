@@ -11,24 +11,33 @@ import streamlit as st
 st.set_page_config(
     page_title="Monitoramento de Projetos de Lei - CGNOR/DELOG",
     layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'About': "Aplicativo de monitoramento parlamentar - Núcleo de Inteligência de Dados"
+    }
 )
 
-col_esq, col_dir = st.columns([5, 1.5])
+# Container principal para melhor organização
+with st.container():
+    col_esq, col_dir = st.columns([5, 1.5])
 
-with col_esq:
-    st.title("Monitoramento de Projetos de Lei - CGNOR/DELOG/SEGES/MGI")
-    st.caption(
-        '''
-        Este aplicativo permite consultar proposições legislativas previamente cadastradas pela Coordenação-Geral de Normas
-        para obter informações de interesse e acompanhar a tramitação no Congresso Nacional.
+    with col_esq:
+        st.title("Monitoramento de Projetos de Lei - CGNOR/DELOG/SEGES/MGI")
+        st.caption(
+            '''
+            Este aplicativo permite consultar proposições legislativas previamente cadastradas pela Coordenação-Geral de Normas
+            para obter informações de interesse e acompanhar a tramitação no Congresso Nacional.
 
-        Fonte de dados: CGNOR - Dados Internos | API Câmara | API Senado
-               
-        '''
-    )
+            **Atualização:** Diária
 
-with col_dir:
-    st.image("image/logo_verde_mgi.png")
+            **Fonte de dados:** CGNOR - Dados Internos | API Câmara | API Senado
+
+            
+            '''
+        )
+
+    with col_dir:
+        st.image("image/logo_verde_mgi.png")
 
 
 
@@ -406,47 +415,49 @@ def limpar_filtros():
 
 
 def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    st.sidebar.header("Filtros")
+    st.sidebar.header("🔍 Filtros de Pesquisa")
     st.sidebar.button("🧹 Limpar filtros", on_click=limpar_filtros, use_container_width=True)
 
-    busca_projeto = st.sidebar.text_input(
-        "Buscar por número / identificação do PL",
-        key="filtro_busca_projeto",
-    )
-    busca_ementa = st.sidebar.text_input(
-        "Buscar por palavra-chave na ementa",
-        key="filtro_busca_ementa",
-    )
-    busca_propositor = st.sidebar.text_input(
-        "Buscar pelo autor da Proposta",
-        key="filtro_busca_propositor",
-    )
-
-    origem_options = []
-    if COLUNA_ORIGEM in df.columns:
-        origem_options = sorted(
-            [x for x in df[COLUNA_ORIGEM].dropna().astype(str).unique() if x.strip()]
+    with st.sidebar.expander("📝 Busca por Texto", expanded=True):
+        busca_projeto = st.text_input(
+            "Buscar por número / identificação do PL",
+            key="filtro_busca_projeto",
+        )
+        busca_ementa = st.text_input(
+            "Buscar por palavra-chave na ementa",
+            key="filtro_busca_ementa",
+        )
+        busca_propositor = st.text_input(
+            "Buscar pelo autor da Proposta",
+            key="filtro_busca_propositor",
         )
 
-    origem_selecionada = st.sidebar.multiselect(
-        "Origem dos dados",
-        options=origem_options,
-        default=[],
-        key="filtro_origem",
-    )
+    with st.sidebar.expander("📊Filtros Categóricos"):
+        origem_options = []
+        if COLUNA_ORIGEM in df.columns:
+            origem_options = sorted(
+                [x for x in df[COLUNA_ORIGEM].dropna().astype(str).unique() if x.strip()]
+            )
 
-    siglas_options = []
-    if "sigla" in df.columns:
-        siglas_options = sorted(
-            [str(x) for x in df["sigla"].dropna().unique() if str(x).strip()]
+        origem_selecionada = st.multiselect(
+            "Origem dos dados",
+            options=origem_options,
+            default=[],
+            key="filtro_origem",
         )
 
-    siglas_selecionadas = st.sidebar.multiselect(
-        "Sigla",
-        options=siglas_options,
-        default=[],
-        key="filtro_sigla",
-    )
+        siglas_options = []
+        if "sigla" in df.columns:
+            siglas_options = sorted(
+                [str(x) for x in df["sigla"].dropna().unique() if str(x).strip()]
+            )
+
+        siglas_selecionadas = st.multiselect(
+            "Sigla",
+            options=siglas_options,
+            default=[],
+            key="filtro_sigla",
+        )
 
     df_view = df.copy()
 
@@ -516,11 +527,16 @@ def render_metrics(df: pd.DataFrame):
         senado = (origem == "Senado").sum()
         bicameral = (origem == "Câmara + Senado").sum()
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Projetos de Lei monitorados", total)
-    c2.metric("Câmara", camara)
-    c3.metric("Senado", senado)
-    c4.metric("Câmara + Senado", bicameral)
+    st.markdown("### Proposições Monitoradas")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📋 Total", f"{total:,}")
+    with col2:
+        st.metric("Câmara", f"{camara:,}")
+    with col3:
+        st.metric("Senado", f"{senado:,}")
+    with col4:
+        st.metric("Bicameral", f"{bicameral:,}")
 
 
 def build_selector_label(row: pd.Series) -> str:
@@ -554,6 +570,53 @@ except Exception as e:
 
 df_filtrado = filter_dataframe(df)
 
+
+
+# ============================================================
+# ÚLTIMAS ATUALIZAÇÕES
+# ============================================================
+
+if not df_filtrado.empty:
+    colunas_data_tramitacao = ["camara_data_ultima_tramitacao", "senado_data_ultima_tramitacao"]
+    
+    # Verificar quais colunas existem
+    colunas_disponveis = [col for col in colunas_data_tramitacao if col in df_filtrado.columns]
+    
+    if colunas_disponveis:
+        df_atualizacoes = df_filtrado.copy()
+        
+        # Converter para datetime (as datas estão em formato dd/mm/yyyy)
+        for col in colunas_disponveis:
+            df_atualizacoes[col] = pd.to_datetime(df_atualizacoes[col], format="%d/%m/%Y", errors="coerce")
+        
+        # Criar coluna com data mais recente entre câmara e senado
+        df_atualizacoes["_data_mais_recente"] = df_atualizacoes[colunas_disponveis].max(axis=1)
+        
+        # Filtrar registros com pelo menos uma data válida e ordenar
+        df_atualizacoes = df_atualizacoes.dropna(subset=["_data_mais_recente"]).sort_values(
+            "_data_mais_recente", ascending=False
+        ).head(10)
+
+        if not df_atualizacoes.empty:
+            with st.expander("🔔 Últimas Atualizações", expanded=False):
+                st.markdown("Proposições com tramitações mais recentes:")
+                for _, row in df_atualizacoes.iterrows():
+                    pl = row.get("Projeto de Lei - Regex", "N/A")
+                    origem = row.get("Origem Dados", "")
+                    
+                    # Pegar a data mais recente (câmara ou senado)
+                    dt_camara = pd.to_datetime(row.get("camara_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce")
+                    dt_senado = pd.to_datetime(row.get("senado_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce")
+                    
+                    data_display = []
+                    if pd.notna(dt_camara):
+                        data_display.append(f"Câmara: {pd.Timestamp(dt_camara).strftime('%d/%m/%Y')}")
+                    if pd.notna(dt_senado):
+                        data_display.append(f"Senado: {pd.Timestamp(dt_senado).strftime('%d/%m/%Y')}")
+                    
+                    data_text = " | ".join(data_display) if data_display else "sem data"
+                    st.write(f"- {pl} ({origem}) — {data_text}")
+
 st.divider()
 render_metrics(df_filtrado)
 
@@ -565,14 +628,25 @@ render_metrics(df_filtrado)
 # SELEÇÃO DE REGISTRO
 # ============================================================
 
-st.subheader("Detalhamento do PL")
+if df_filtrado.empty:
+    st.warning(
+        "⚠️ Nenhum resultado encontrado com os filtros aplicados.\n\n"
+        "💡 Dicas:\n"
+        "- Verifique se os termos de busca estão corretos\n"
+        "- Tente filtros menos específicos\n"
+        "- Use a opção 'Limpar filtros' na barra lateral"
+    )
+    st.stop()
+
+st.subheader("Detalhamento")
 
 df_selecao = df_filtrado.copy().reset_index(drop=False).rename(columns={"index": "_row_id"})
 df_selecao["_label"] = df_selecao.apply(build_selector_label, axis=1)
 
 selected_label = st.selectbox(
-    "Selecione um proposta para detalhar",
+    "Selecione uma proposição para detalhar",
     options=df_selecao["_label"].tolist(),
+    help="Escolha uma proposição da lista para ver detalhes completos"
 )
 
 registro = df_selecao.loc[df_selecao["_label"] == selected_label].iloc[0]
@@ -635,8 +709,8 @@ with tab_interno:
 
 
 st.divider()
-st.subheader("Base das proposições Monitoradas")
-st.caption("Abaixo a tabela com todos os campos disponíveis (Dados CGNOR + API Camara + API Senado). Ao parar o mouse sobre a tabela, o icone com olho será apresentado. E é possível selecionar as colunas a serem visualizadas")
+st.subheader("📥 Download dos Dados")
+st.caption("Faça o download da planilha completa com todos os dados clicando no botão fixo no canto inferior direito da tela.")
 
 if df_filtrado.empty:
     st.warning("Nenhum registro encontrado com os filtros aplicados.")
@@ -646,14 +720,14 @@ df_resumo = build_summary_table(df_filtrado)
 
 column_config_resumo = make_link_column_config(df_resumo)
 
-
-
-st.dataframe(
-    df_resumo,
-    use_container_width=True,
-    hide_index=True,
-    column_config=column_config_resumo,
-)
+# A tabela foi removida por solicitação para manter apenas o botão de download.
+# Se quiser reativar, basta descomentar o bloco abaixo.
+# st.dataframe(
+#     df_resumo,
+#     use_container_width=True,
+#     hide_index=True,
+#     column_config=column_config_resumo,
+# )
 
 st.markdown(
     """
@@ -672,10 +746,11 @@ st.markdown(
 st.markdown('<div class="download-button-container">', unsafe_allow_html=True)
 
 st.download_button(
-    label="⬇️ Download em csv",
-    data=df_filtrado.to_csv(index=False).encode("utf-8-sig"),
+    label="⬇️ Download em CSV",
+    data=df.to_csv(index=False).encode("utf-8-sig"),
     file_name="planilha_completa_pl.csv",
     mime="text/csv",
+    help="Clique para baixar a planilha completa com todos os dados em formato CSV"
 )
 
 st.markdown("</div>", unsafe_allow_html=True)
@@ -684,7 +759,8 @@ st.markdown("</div>", unsafe_allow_html=True)
 # Rodapé
 st.markdown("""
 <hr style="height:1px;border:none;color:#ccc;background-color:#ccc;" />
-<p style="text-align: center; font-size: 0.9em;">
-Desenvolvido pelo <b>Núcleo de Inteligência de Dados</b> - <b>CDATA/CGINF/SEGES/MGI</b>.
-</p>
+<div style="text-align: center; font-size: 0.9em; color: #666;">
+    Desenvolvido pelo <b>Núcleo de Inteligência de Dados</b> - <b>CDATA/CGINF/SEGES/MGI</b><br>
+    Atualização diária
+</div>
 """, unsafe_allow_html=True)
