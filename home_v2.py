@@ -761,6 +761,6 @@ st.markdown("""
 <hr style="height:1px;border:none;color:#ccc;background-color:#ccc;" />
 <div style="text-align: center; font-size: 0.9em; color: #666;">
     Desenvolvido pelo <b>Núcleo de Inteligência de Dados</b> - <b>CDATA/CGINF/SEGES/MGI</b><br>
-    Atualização diária
+    
 </div>
 """, unsafe_allow_html=True)
