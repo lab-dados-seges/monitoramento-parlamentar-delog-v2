@@ -9,7 +9,7 @@ import streamlit as st
 # ============================================================
 
 st.set_page_config(
-    page_title="Monitoramento de Projetos de Lei - CGNOR/DELOG",
+    page_title="Monitoramento de Proposições - CGNOR/DELOG",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
