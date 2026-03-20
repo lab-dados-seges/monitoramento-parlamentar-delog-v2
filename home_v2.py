@@ -22,7 +22,7 @@ with st.container():
     col_esq, col_dir = st.columns([5, 1.5])
 
     with col_esq:
-        st.title("Monitoramento de Projetos de Lei - CGNOR/DELOG/SEGES/MGI")
+        st.title("Monitoramento de Proposições - CGNOR/DELOG/SEGES/MGI")
         st.caption(
             '''
             Este aplicativo permite consultar proposições legislativas previamente cadastradas pela Coordenação-Geral de Normas
