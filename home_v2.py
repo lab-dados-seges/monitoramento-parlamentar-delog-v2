@@ -317,6 +317,10 @@ def load_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8-sig")
     df.columns = [c.strip() if isinstance(c, str) else c for c in df.columns]
     df = normalizar_campos_para_exibicao(df)
+    # Padronizar "Origem Dados" preenchendo vazios com "Não encontrado"
+    if COLUNA_ORIGEM in df.columns:
+        df[COLUNA_ORIGEM] = df[COLUNA_ORIGEM].fillna("Não encontrado").astype(str)
+        df[COLUNA_ORIGEM] = df[COLUNA_ORIGEM].apply(lambda x: "Não encontrado" if str(x).strip() == "" else x)
     return df
 
 
@@ -375,6 +379,18 @@ def render_kv(df_row: pd.Series, columns: List[str], title_map: Dict[str, str] |
         st.info("Nenhum dado disponível nesta seção.")
         return
 
+    # Verificar se há algum dado disponível (não vazio) na seção
+    has_any_data = False
+    for col in cols_ok:
+        value = df_row[col]
+        if pd.notna(value) and str(value).strip():
+            has_any_data = True
+            break
+    
+    if not has_any_data:
+        st.info("Nenhum dado disponível nesta seção.")
+        return
+
     for col in cols_ok:
         label = title_map.get(col, col) if title_map else col
         value = df_row[col]
@@ -404,6 +420,109 @@ def render_kv(df_row: pd.Series, columns: List[str], title_map: Dict[str, str] |
             )
         else:
             st.markdown(f"**{label}:** {value}")
+
+
+def render_kv_two_columns(df_row: pd.Series, camara_cols: List[str], senado_cols: List[str], title_map: Dict[str, str] | None = None):
+    """Renderiza dados em duas colunas, lado a lado (Câmara e Senado)"""
+    
+    # Filtrar colunas que existem no índice
+    camara_cols_ok = [c for c in camara_cols if c in df_row.index]
+    senado_cols_ok = [c for c in senado_cols if c in df_row.index]
+    
+    # Se não houver colunas de nenhum lado, mostrar aviso
+    if not camara_cols_ok and not senado_cols_ok:
+        st.info("Nenhum dado disponível nesta seção.")
+        return
+    
+    col_esq, col_dir = st.columns(2)
+    
+    # Câmara (coluna esquerda)
+    with col_esq:
+        if camara_cols_ok:
+            st.markdown(":blue[**Câmara dos Deputados**]")
+            has_data_camara = False
+            for col in camara_cols_ok:
+                value = df_row[col]
+                if pd.notna(value) and str(value).strip():
+                    has_data_camara = True
+                    break
+            
+            if not has_data_camara:
+                st.markdown("<span style='color: #9CA3AF; font-style: italic;'>Sem dados disponíveis</span>", unsafe_allow_html=True)
+            else:
+                for col in camara_cols_ok:
+                    label = title_map.get(col, col) if title_map else col
+                    value = df_row[col]
+
+                    if pd.isna(value) or str(value).strip() == "":
+                        value = "Não identificado"
+
+                    if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
+                        st.markdown(f"**{label}:** [Abrir link]({value})")
+                    elif value == "Não identificado":
+                        st.markdown(
+                            f"""
+                            **{label}:**
+                            <span style="
+                                display:inline-block;
+                                padding: 2px 8px;
+                                border-radius: 8px;
+                                background-color: #F3F4F6;
+                                color: #6B7280;
+                                font-size: 0.92em;
+                                font-style: italic;
+                            ">
+                                Não identificado
+                            </span>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(f"**{label}:** {value}")
+    
+    # Senado (coluna direita)
+    with col_dir:
+        if senado_cols_ok:
+            st.markdown(":green[**Senado Federal**]")
+            has_data_senado = False
+            for col in senado_cols_ok:
+                value = df_row[col]
+                if pd.notna(value) and str(value).strip():
+                    has_data_senado = True
+                    break
+            
+            if not has_data_senado:
+                st.markdown("<span style='color: #9CA3AF; font-style: italic;'>Sem dados disponíveis</span>", unsafe_allow_html=True)
+            else:
+                for col in senado_cols_ok:
+                    label = title_map.get(col, col) if title_map else col
+                    value = df_row[col]
+
+                    if pd.isna(value) or str(value).strip() == "":
+                        value = "Não identificado"
+
+                    if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
+                        st.markdown(f"**{label}:** [Abrir link]({value})")
+                    elif value == "Não identificado":
+                        st.markdown(
+                            f"""
+                            **{label}:**
+                            <span style="
+                                display:inline-block;
+                                padding: 2px 8px;
+                                border-radius: 8px;
+                                background-color: #F3F4F6;
+                                color: #6B7280;
+                                font-size: 0.92em;
+                                font-style: italic;
+                            ">
+                                Não identificado
+                            </span>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(f"**{label}:** {value}")
 
 
 def limpar_filtros():
@@ -520,15 +639,17 @@ def render_metrics(df: pd.DataFrame):
     camara = 0
     senado = 0
     bicameral = 0
+    nao_encontrado = 0
 
     if COLUNA_ORIGEM in df.columns:
         origem = df[COLUNA_ORIGEM].fillna("").astype(str)
         camara = (origem == "Câmara").sum()
         senado = (origem == "Senado").sum()
         bicameral = (origem == "Câmara + Senado").sum()
+        nao_encontrado = (origem == "Não encontrado").sum()
 
     st.markdown("### Proposições Monitoradas")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("📋 Total", f"{total:,}")
     with col2:
@@ -537,6 +658,8 @@ def render_metrics(df: pd.DataFrame):
         st.metric("Senado", f"{senado:,}")
     with col4:
         st.metric("Bicameral", f"{bicameral:,}")
+    with col5:
+        st.metric("Não encontrado", f"{nao_encontrado:,}")
 
 
 def build_selector_label(row: pd.Series) -> str:
@@ -550,10 +673,6 @@ def build_selector_label(row: pd.Series) -> str:
 
     partes = [p for p in [projeto, regex, origem] if p]
     return " | ".join(partes) if partes else "Registro"
-
-
-# ============================================================
-# LEITURA DO ARQUIVO
 # ============================================================
 
 try:
@@ -576,14 +695,14 @@ df_filtrado = filter_dataframe(df)
 # ÚLTIMAS ATUALIZAÇÕES
 # ============================================================
 
-if not df_filtrado.empty:
+if not df.empty:
     colunas_data_tramitacao = ["camara_data_ultima_tramitacao", "senado_data_ultima_tramitacao"]
     
     # Verificar quais colunas existem
-    colunas_disponveis = [col for col in colunas_data_tramitacao if col in df_filtrado.columns]
+    colunas_disponveis = [col for col in colunas_data_tramitacao if col in df.columns]
     
     if colunas_disponveis:
-        df_atualizacoes = df_filtrado.copy()
+        df_atualizacoes = df.copy()
         
         # Converter para datetime (as datas estão em formato dd/mm/yyyy)
         for col in colunas_disponveis:
@@ -598,6 +717,21 @@ if not df_filtrado.empty:
         ).head(10)
 
         if not df_atualizacoes.empty:
+            st.markdown(
+                """
+                <style>
+                .css-1l55jj9.elevated {
+                    background-color: #eef6ff !important;
+                    border: 1px solid #c7ddff !important;
+                    border-radius: 10px !important;
+                }
+                .css-1l55jj9 .st-expander {
+                    background-color: #eef6ff !important;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
             with st.expander("🔔 Últimas Atualizações", expanded=False):
                 st.markdown("Proposições com tramitações mais recentes:")
                 for _, row in df_atualizacoes.iterrows():
@@ -661,12 +795,6 @@ tab_resumo, tab_camara, tab_senado, tab_interno = st.tabs(
 )
 
 with tab_resumo:
-    st.markdown("### Dados gerais")
-    render_kv(
-        registro,
-        COLUNAS_RESUMO_DETALHE,
-        title_map=DISPLAY_LABELS,
-    )
 
     st.markdown("### Ementas")
     if "camara_ementa" in registro.index and pd.notna(registro["camara_ementa"]) and str(registro["camara_ementa"]).strip():
@@ -675,42 +803,131 @@ with tab_resumo:
     if "senado_ementa" in registro.index and pd.notna(registro["senado_ementa"]) and str(registro["senado_ementa"]).strip():
         st.markdown(f"**Ementa Senado:** {registro['senado_ementa']}")
 
-    st.markdown("### Situação atual")
-    render_kv(
+    st.markdown("### Dados gerais")
+    
+    # Separar colunas de câmara e senado
+    camara_cols_resumo = [
+        "Projeto de Lei - Regex",        
+        "camara_data_proposta_pl",
+        "camara_propositor_pl",
+    ]
+    senado_cols_resumo = [
+        "Projeto de Lei - Regex",        
+        "senado_data_proposta_pl",
+        "senado_propositor_pl",
+    ]
+    
+    render_kv_two_columns(
         registro,
-        [
-            "camara_data_ultima_tramitacao",
-            "camara_orgao_ultima_tramitacao",
-            "camara_situacao_ultima_tramitacao",
-            "senado_data_ultima_tramitacao",
-            "senado_orgao_ultima_tramitacao",
-            "senado_situacao_ultima_tramitacao",
-        ],
+        camara_cols_resumo,
+        senado_cols_resumo,
+        title_map=DISPLAY_LABELS,
+    )
+
+    st.markdown("### Situação atual")
+    
+    camara_cols_situacao = [
+        "camara_data_ultima_tramitacao",
+        "camara_orgao_ultima_tramitacao",
+        "camara_situacao_ultima_tramitacao",
+    ]
+    senado_cols_situacao = [
+        "senado_data_ultima_tramitacao",
+        "senado_orgao_ultima_tramitacao",
+        "senado_situacao_ultima_tramitacao",
+    ]
+    
+    render_kv_two_columns(
+        registro,
+        camara_cols_situacao,
+        senado_cols_situacao,
         title_map=DISPLAY_LABELS
     )
 
 with tab_camara:
     st.markdown("### Dados da Câmara dos Deputados")
-    render_kv(registro, COLUNAS_CAMARA, title_map=DISPLAY_LABELS)
+    camara_left = [
+        "camara_id_proposicao",
+        "camara_projeto",
+        "camara_ementa",
+        "camara_data_proposta_pl",
+        "camara_propositor_pl",
+        "camara_partido",
+        "camara_estado",
+    ]
+    camara_right = [
+        "camara_data_ultima_tramitacao",
+        "camara_orgao_ultima_tramitacao",
+        "camara_situacao_ultima_tramitacao",
+        "camara_data_parecer_aprovado",
+        "camara_orgao_parecer",
+        "camara_despacho_parecer",
+        "camara_link_inteiro_teor_parecer",
+        "camara_link_inteiro_teor_pl",
+        "camara_link_ficha_tramitacao",
+        "camara_emendas",
+        "camara_substitutivos",
+    ]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        render_kv(registro, camara_left, title_map=DISPLAY_LABELS)
+    with col2:
+        render_kv(registro, camara_right, title_map=DISPLAY_LABELS)
 
 with tab_senado:
     st.markdown("### Dados do Senado Federal")
-    render_kv(registro, COLUNAS_SENADO, title_map=DISPLAY_LABELS)
+    senado_left = [
+        "senado_id_processo",
+        "senado_codigo_materia",
+        "senado_projeto",
+        "senado_ementa",
+        "senado_data_proposta_pl",
+        "senado_propositor_pl",
+        "senado_partido",
+        "senado_estado",
+    ]
+    senado_right = [
+        "senado_data_ultima_tramitacao",
+        "senado_orgao_ultima_tramitacao",
+        "senado_situacao_ultima_tramitacao",
+        "senado_data_parecer_aprovado",
+        "senado_orgao_parecer",
+        "senado_link_inteiro_teor_parecer",
+        "senado_link_inteiro_teor_pl",
+        "senado_link_ficha_tramitacao",
+        "senado_emendas",
+        "senado_substitutivos",
+    ]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        render_kv(registro, senado_left, title_map=DISPLAY_LABELS)
+    with col2:
+        render_kv(registro, senado_right, title_map=DISPLAY_LABELS)
 
 with tab_interno:
     st.markdown("### Dados do Controle Interno CGNOR")
-    render_kv(registro, COLUNAS_CONTROLE_INTERNO)
+
+    controle_left = COLUNAS_CONTROLE_INTERNO[: len(COLUNAS_CONTROLE_INTERNO) // 2]
+    controle_right = COLUNAS_CONTROLE_INTERNO[len(COLUNAS_CONTROLE_INTERNO) // 2 :]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        render_kv(registro, controle_left, title_map=DISPLAY_LABELS)
+    with col2:
+        render_kv(registro, controle_right, title_map=DISPLAY_LABELS)
 
 
 
 # ============================================================
-# TABELA RESUMIDA
+# DOWNLOAD DOS DADOS
 # ============================================================
 
 
 st.divider()
 st.subheader("📥 Download dos Dados")
-st.caption("Faça o download da planilha completa com todos os dados clicando no botão fixo no canto inferior direito da tela.")
+st.caption("Faça o download da planilha completa com todos os dados clicando no botão abaixo.")
 
 if df_filtrado.empty:
     st.warning("Nenhum registro encontrado com os filtros aplicados.")
