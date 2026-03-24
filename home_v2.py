@@ -17,33 +17,52 @@ st.set_page_config(
     }
 )
 
-# Container principal para melhor organização
+# CSS global para melhor experiência visual
+st.markdown("""
+<style>
+/* Cards de métricas */
+[data-testid="metric-container"] {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 16px;
+}
+
+/* Expander com fonte levemente mais destacada */
+[data-testid="stExpander"] summary p {
+    font-weight: 600;
+}
+
+/* Botão de download e limpar filtros */
+[data-testid="stSidebar"] .stButton > button {
+    border-radius: 8px;
+}
+
+/* Rodapé */
+.rodape {
+    text-align: center;
+    font-size: 0.85em;
+    color: #94a3b8;
+    padding: 0.5rem 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Header
 with st.container():
     col_esq, col_dir = st.columns([5, 1.5])
-
     with col_esq:
-        st.title("Monitoramento de Proposições - CGNOR/DELOG/SEGES/MGI")
+        st.title("Monitoramento de Proposições  CGNOR/DELOG/SEGES/MGI")
         st.caption(
-            '''
-            Este aplicativo permite consultar proposições legislativas previamente cadastradas pela Coordenação-Geral de Normas
-            para obter informações de interesse e acompanhar a tramitação no Congresso Nacional.
+            "Consulta e acompanhamento de proposições legislativas acompanhadas pela Coordenação-Geral de Normas - CGNOR -  "
+            "tramitação na Câmara dos Deputados e no Senado Federal. \n"
 
-            **Atualização:** Diária
-
-            **Fonte de dados:** CGNOR - Dados Internos | API Câmara | API Senado
-
-            
-            '''
+            "**Atualização:** Diária · **Fonte:** Dados Internos CGNOR | API Câmara | API Senado"
         )
-
     with col_dir:
         st.image("image/logo_verde_mgi.png")
 
-
-
-
-
-
+st.divider()
 
 
 # ============================================================
@@ -126,7 +145,6 @@ COLUNAS_CAMARA = [
     "camara_link_ficha_tramitacao",
     "camara_emendas",
     "camara_substitutivos",
-
 ]
 
 COLUNAS_SENADO = [
@@ -145,10 +163,9 @@ COLUNAS_SENADO = [
     "senado_orgao_parecer",
     "senado_link_inteiro_teor_parecer",
     "senado_link_inteiro_teor_pl",
-    "senado_link_ficha_tramitacao",    
+    "senado_link_ficha_tramitacao",
     "senado_emendas",
     "senado_substitutivos",
-    
 ]
 
 COLUNAS_CONTROLE_INTERNO = [
@@ -179,7 +196,7 @@ COLUNAS_CONTROLE_INTERNO = [
 ]
 
 DISPLAY_LABELS = {
-    "Projeto de Lei - Regex": "Identificação",    
+    "Projeto de Lei - Regex": "Identificação",
     "camara_id_proposicao": "(Câmara) ID da Proposição",
     "camara_projeto": "(Câmara) Projeto",
     "camara_ementa": "(Câmara) Ementa",
@@ -221,11 +238,18 @@ DISPLAY_LABELS = {
     "senado_substitutivos": "(Senado) Substitutivos",
 }
 
+# Labels sem prefixo de casa legislativa — usados dentro das abas específicas
+def _strip_prefix(label_map: Dict[str, str], prefix: str) -> Dict[str, str]:
+    return {k: v.replace(prefix, "").strip() for k, v in label_map.items()}
+
+DISPLAY_LABELS_CAMARA = _strip_prefix(DISPLAY_LABELS, "(Câmara)")
+DISPLAY_LABELS_SENADO = _strip_prefix(DISPLAY_LABELS, "(Senado)")
+
 COLUNAS_RESULTADOS = [
-    "Origem Dados",    
-    "Projeto de LEI",    
+    "Origem Dados",
+    "Projeto de LEI",
     "Projeto de Lei - Regex",
-    "camara_ementa",    
+    "camara_ementa",
     "camara_data_proposta_pl",
     "camara_propositor_pl",
     "camara_partido",
@@ -284,30 +308,27 @@ COLUNAS_RESULTADOS = [
     "Observações andamento - Parecer",
 ]
 
+
 # ============================================================
 # FUNÇÕES AUXILIARES
 # ============================================================
 
 def formatar_datas_para_exibicao(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-
     for col in COLUNAS_DATA:
         if col in df.columns:
             serie = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
             df[col] = serie.dt.strftime("%d/%m/%Y")
             df[col] = df[col].fillna("")
-
     return df
 
 
 def formatar_numeros_sem_decimal(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-
     for col in COLUNAS_NUMERICAS_SEM_DECIMAL:
         if col in df.columns:
             serie = pd.to_numeric(df[col], errors="coerce")
             df[col] = serie.apply(lambda x: "" if pd.isna(x) else str(int(x)))
-
     return df
 
 
@@ -323,7 +344,6 @@ def load_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8-sig")
     df.columns = [c.strip() if isinstance(c, str) else c for c in df.columns]
     df = normalizar_campos_para_exibicao(df)
-    # Padronizar "Origem Dados" preenchendo vazios com "Não encontrado"
     if COLUNA_ORIGEM in df.columns:
         df[COLUNA_ORIGEM] = df[COLUNA_ORIGEM].fillna("Não encontrado").astype(str)
         df[COLUNA_ORIGEM] = df[COLUNA_ORIGEM].apply(lambda x: "Não encontrado" if str(x).strip() == "" else x)
@@ -340,10 +360,8 @@ def normalize_text_series(series: pd.Series) -> pd.Series:
 
 def make_link_column_config(df: pd.DataFrame) -> Dict[str, st.column_config.Column]:
     config = {}
-
     for col in df.columns:
         label_exibicao = DISPLAY_LABELS.get(col, col)
-
         if col in LINK_COLUMNS:
             config[col] = st.column_config.LinkColumn(
                 label=label_exibicao,
@@ -353,20 +371,10 @@ def make_link_column_config(df: pd.DataFrame) -> Dict[str, st.column_config.Colu
         else:
             config[col] = st.column_config.Column(label_exibicao)
 
-    pinned_cols = [
-        "Projeto de LEI",
-        "Projeto de Lei - Regex",
-        "Processo",
-        "Origem Dados"
-        
-    ]
+    pinned_cols = ["Projeto de LEI", "Projeto de Lei - Regex", "Processo", "Origem Dados"]
     for col in pinned_cols:
         if col in df.columns:
-            config[col] = st.column_config.Column(
-                DISPLAY_LABELS.get(col, col),
-                pinned=True,
-            )
-
+            config[col] = st.column_config.Column(DISPLAY_LABELS.get(col, col), pinned=True)
     return config
 
 
@@ -379,20 +387,29 @@ def first_non_empty(row: pd.Series, cols: List[str]) -> str:
     return ""
 
 
+def _render_kv_field(label: str, value, col: str):
+    """Renderiza um único campo chave-valor com formatação consistente."""
+    if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
+        st.markdown(f"**{label}:** [Abrir link]({value})")
+    elif value == "Não identificado":
+        st.markdown(
+            f'**{label}:** <span style="'
+            'display:inline-block;padding:2px 8px;border-radius:6px;'
+            'background-color:#F3F4F6;color:#9CA3AF;font-size:0.9em;font-style:italic;">'
+            'Não identificado</span>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(f"**{label}:** {value}")
+
+
 def render_kv(df_row: pd.Series, columns: List[str], title_map: Dict[str, str] | None = None):
     cols_ok = [c for c in columns if c in df_row.index]
     if not cols_ok:
         st.info("Nenhum dado disponível nesta seção.")
         return
 
-    # Verificar se há algum dado disponível (não vazio) na seção
-    has_any_data = False
-    for col in cols_ok:
-        value = df_row[col]
-        if pd.notna(value) and str(value).strip():
-            has_any_data = True
-            break
-    
+    has_any_data = any(pd.notna(df_row[col]) and str(df_row[col]).strip() for col in cols_ok)
     if not has_any_data:
         st.info("Nenhum dado disponível nesta seção.")
         return
@@ -400,135 +417,65 @@ def render_kv(df_row: pd.Series, columns: List[str], title_map: Dict[str, str] |
     for col in cols_ok:
         label = title_map.get(col, col) if title_map else col
         value = df_row[col]
-
         if pd.isna(value) or str(value).strip() == "":
             value = "Não identificado"
-
-        if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
-            st.markdown(f"**{label}:** [Abrir link]({value})")
-        elif value == "Não identificado":
-            st.markdown(
-                f"""
-                **{label}:**
-                <span style="
-                    display:inline-block;
-                    padding: 2px 8px;
-                    border-radius: 8px;
-                    background-color: #F3F4F6;
-                    color: #6B7280;
-                    font-size: 0.92em;
-                    font-style: italic;
-                ">
-                    Não identificado
-                </span>
-                """,
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(f"**{label}:** {value}")
+        _render_kv_field(label, value, col)
 
 
-def render_kv_two_columns(df_row: pd.Series, camara_cols: List[str], senado_cols: List[str], title_map: Dict[str, str] | None = None):
-    """Renderiza dados em duas colunas, lado a lado (Câmara e Senado)"""
-    
-    # Filtrar colunas que existem no índice
+def render_kv_two_columns(
+    df_row: pd.Series,
+    camara_cols: List[str],
+    senado_cols: List[str],
+    title_map: Dict[str, str] | None = None,
+    camara_title_map: Dict[str, str] | None = None,
+    senado_title_map: Dict[str, str] | None = None,
+):
+    """Renderiza dados em duas colunas lado a lado (Câmara e Senado)."""
     camara_cols_ok = [c for c in camara_cols if c in df_row.index]
     senado_cols_ok = [c for c in senado_cols if c in df_row.index]
-    
-    # Se não houver colunas de nenhum lado, mostrar aviso
+
     if not camara_cols_ok and not senado_cols_ok:
         st.info("Nenhum dado disponível nesta seção.")
         return
-    
+
+    c_map = camara_title_map or title_map
+    s_map = senado_title_map or title_map
+
     col_esq, col_dir = st.columns(2)
-    
-    # Câmara (coluna esquerda)
+
     with col_esq:
         if camara_cols_ok:
             st.markdown(":blue[**Câmara dos Deputados**]")
-            has_data_camara = False
-            for col in camara_cols_ok:
-                value = df_row[col]
-                if pd.notna(value) and str(value).strip():
-                    has_data_camara = True
-                    break
-            
-            if not has_data_camara:
-                st.markdown("<span style='color: #9CA3AF; font-style: italic;'>Sem dados disponíveis</span>", unsafe_allow_html=True)
+            has_data = any(pd.notna(df_row[c]) and str(df_row[c]).strip() for c in camara_cols_ok)
+            if not has_data:
+                st.markdown(
+                    "<span style='color:#9CA3AF;font-style:italic;'>Sem dados disponíveis</span>",
+                    unsafe_allow_html=True,
+                )
             else:
                 for col in camara_cols_ok:
-                    label = title_map.get(col, col) if title_map else col
+                    label = c_map.get(col, col) if c_map else col
                     value = df_row[col]
-
                     if pd.isna(value) or str(value).strip() == "":
                         value = "Não identificado"
+                    _render_kv_field(label, value, col)
 
-                    if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
-                        st.markdown(f"**{label}:** [Abrir link]({value})")
-                    elif value == "Não identificado":
-                        st.markdown(
-                            f"""
-                            **{label}:**
-                            <span style="
-                                display:inline-block;
-                                padding: 2px 8px;
-                                border-radius: 8px;
-                                background-color: #F3F4F6;
-                                color: #6B7280;
-                                font-size: 0.92em;
-                                font-style: italic;
-                            ">
-                                Não identificado
-                            </span>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        st.markdown(f"**{label}:** {value}")
-    
-    # Senado (coluna direita)
     with col_dir:
         if senado_cols_ok:
             st.markdown(":green[**Senado Federal**]")
-            has_data_senado = False
-            for col in senado_cols_ok:
-                value = df_row[col]
-                if pd.notna(value) and str(value).strip():
-                    has_data_senado = True
-                    break
-            
-            if not has_data_senado:
-                st.markdown("<span style='color: #9CA3AF; font-style: italic;'>Sem dados disponíveis</span>", unsafe_allow_html=True)
+            has_data = any(pd.notna(df_row[c]) and str(df_row[c]).strip() for c in senado_cols_ok)
+            if not has_data:
+                st.markdown(
+                    "<span style='color:#9CA3AF;font-style:italic;'>Sem dados disponíveis</span>",
+                    unsafe_allow_html=True,
+                )
             else:
                 for col in senado_cols_ok:
-                    label = title_map.get(col, col) if title_map else col
+                    label = s_map.get(col, col) if s_map else col
                     value = df_row[col]
-
                     if pd.isna(value) or str(value).strip() == "":
                         value = "Não identificado"
-
-                    if col in LINK_COLUMNS and isinstance(value, str) and value.startswith("http"):
-                        st.markdown(f"**{label}:** [Abrir link]({value})")
-                    elif value == "Não identificado":
-                        st.markdown(
-                            f"""
-                            **{label}:**
-                            <span style="
-                                display:inline-block;
-                                padding: 2px 8px;
-                                border-radius: 8px;
-                                background-color: #F3F4F6;
-                                color: #6B7280;
-                                font-size: 0.92em;
-                                font-style: italic;
-                            ">
-                                Não identificado
-                            </span>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        st.markdown(f"**{label}:** {value}")
+                    _render_kv_field(label, value, col)
 
 
 def limpar_filtros():
@@ -545,19 +492,22 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     with st.sidebar.expander("📝 Busca por Texto", expanded=True):
         busca_projeto = st.text_input(
-            "Buscar por número / identificação do PL",
+            "Número / identificação do PL",
+            placeholder="Ex: PL 1234/2024",
             key="filtro_busca_projeto",
         )
         busca_ementa = st.text_input(
-            "Buscar por palavra-chave na ementa",
+            "Palavra-chave na ementa",
+            placeholder="Ex: servidor público",
             key="filtro_busca_ementa",
         )
         busca_propositor = st.text_input(
-            "Buscar pelo autor da Proposta",
+            "Autor da proposta",
+            placeholder="Ex: João Silva",
             key="filtro_busca_propositor",
         )
 
-    with st.sidebar.expander("📊Filtros Categóricos"):
+    with st.sidebar.expander("📊 Filtros Categóricos"):
         origem_options = []
         if COLUNA_ORIGEM in df.columns:
             origem_options = sorted(
@@ -599,7 +549,6 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                 "Processo",
             ],
         )
-
         if cols_busca_projeto:
             mask = pd.Series(False, index=df_view.index)
             for c in cols_busca_projeto:
@@ -635,17 +584,12 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     cols_ok = available_cols(df, COLUNAS_RESULTADOS)
-    resumo = df[cols_ok].copy()
-    return resumo
+    return df[cols_ok].copy()
 
 
 def render_metrics(df: pd.DataFrame):
     total = len(df)
-
-    camara = 0
-    senado = 0
-    bicameral = 0
-    nao_encontrado = 0
+    camara = senado = bicameral = nao_encontrado = 0
 
     if COLUNA_ORIGEM in df.columns:
         origem = df[COLUNA_ORIGEM].fillna("").astype(str)
@@ -657,7 +601,7 @@ def render_metrics(df: pd.DataFrame):
     st.markdown("### Proposições Monitoradas")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("📋 Total", f"{total:,}")
+        st.metric("Total", f"{total:,}")
     with col2:
         st.metric("Câmara", f"{camara:,}")
     with col3:
@@ -679,6 +623,10 @@ def build_selector_label(row: pd.Series) -> str:
 
     partes = [p for p in [projeto, regex, origem] if p]
     return " | ".join(partes) if partes else "Registro"
+
+
+# ============================================================
+# CARREGAMENTO DOS DADOS
 # ============================================================
 
 try:
@@ -696,72 +644,51 @@ except Exception as e:
 df_filtrado = filter_dataframe(df)
 
 
-
 # ============================================================
 # ÚLTIMAS ATUALIZAÇÕES
 # ============================================================
 
 if not df.empty:
     colunas_data_tramitacao = ["camara_data_ultima_tramitacao", "senado_data_ultima_tramitacao"]
-    
-    # Verificar quais colunas existem
-    colunas_disponveis = [col for col in colunas_data_tramitacao if col in df.columns]
-    
-    if colunas_disponveis:
+    colunas_disponiveis = [col for col in colunas_data_tramitacao if col in df.columns]
+
+    if colunas_disponiveis:
         df_atualizacoes = df.copy()
-        
-        # Converter para datetime (as datas estão em formato dd/mm/yyyy)
-        for col in colunas_disponveis:
+        for col in colunas_disponiveis:
             df_atualizacoes[col] = pd.to_datetime(df_atualizacoes[col], format="%d/%m/%Y", errors="coerce")
-        
-        # Criar coluna com data mais recente entre câmara e senado
-        df_atualizacoes["_data_mais_recente"] = df_atualizacoes[colunas_disponveis].max(axis=1)
-        
-        # Filtrar registros com pelo menos uma data válida e ordenar
-        df_atualizacoes = df_atualizacoes.dropna(subset=["_data_mais_recente"]).sort_values(
-            "_data_mais_recente", ascending=False
-        ).head(10)
+
+        df_atualizacoes["_data_mais_recente"] = df_atualizacoes[colunas_disponiveis].max(axis=1)
+        df_atualizacoes = (
+            df_atualizacoes.dropna(subset=["_data_mais_recente"])
+            .sort_values("_data_mais_recente", ascending=False)
+            .head(10)
+        )
 
         if not df_atualizacoes.empty:
-            st.markdown(
-                """
-                <style>
-                .css-1l55jj9.elevated {
-                    background-color: #eef6ff !important;
-                    border: 1px solid #c7ddff !important;
-                    border-radius: 10px !important;
-                }
-                .css-1l55jj9 .st-expander {
-                    background-color: #eef6ff !important;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True,
-            )
             with st.expander("🔔 Últimas Atualizações", expanded=False):
-                st.markdown("Proposições com tramitações mais recentes:")
+                st.caption("Proposições com tramitações mais recentes:")
                 for _, row in df_atualizacoes.iterrows():
                     pl = row.get("Projeto de Lei - Regex", "N/A")
                     origem = row.get("Origem Dados", "")
-                    
-                    # Pegar a data mais recente (câmara ou senado)
-                    dt_camara = pd.to_datetime(row.get("camara_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce")
-                    dt_senado = pd.to_datetime(row.get("senado_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce")
-                    
-                    data_display = []
+
+                    dt_camara = pd.to_datetime(
+                        row.get("camara_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce"
+                    )
+                    dt_senado = pd.to_datetime(
+                        row.get("senado_data_ultima_tramitacao"), format="%d/%m/%Y", errors="coerce"
+                    )
+
+                    partes = []
                     if pd.notna(dt_camara):
-                        data_display.append(f"Câmara: {pd.Timestamp(dt_camara).strftime('%d/%m/%Y')}")
+                        partes.append(f"Câmara: **{pd.Timestamp(dt_camara).strftime('%d/%m/%Y')}**")
                     if pd.notna(dt_senado):
-                        data_display.append(f"Senado: {pd.Timestamp(dt_senado).strftime('%d/%m/%Y')}")
-                    
-                    data_text = " | ".join(data_display) if data_display else "sem data"
-                    st.write(f"- {pl} ({origem}) — {data_text}")
+                        partes.append(f"Senado: **{pd.Timestamp(dt_senado).strftime('%d/%m/%Y')}**")
+
+                    data_text = " · ".join(partes) if partes else "_sem data_"
+                    st.markdown(f"**{pl}** ({origem}) — {data_text}")
 
 st.divider()
 render_metrics(df_filtrado)
-
-
-
 
 
 # ============================================================
@@ -769,24 +696,19 @@ render_metrics(df_filtrado)
 # ============================================================
 
 if df_filtrado.empty:
-    st.warning(
-        "⚠️ Nenhum resultado encontrado com os filtros aplicados.\n\n"
-        "💡 Dicas:\n"
-        "- Verifique se os termos de busca estão corretos\n"
-        "- Tente filtros menos específicos\n"
-        "- Use a opção 'Limpar filtros' na barra lateral"
-    )
+    st.warning("Nenhum resultado encontrado com os filtros aplicados.", icon="⚠️")
+    st.info("Verifique os termos de busca, tente filtros menos específicos ou use **Limpar filtros** na barra lateral.")
     st.stop()
 
-st.subheader("Detalhamento")
+st.subheader("Detalhamento da Proposição")
 
 df_selecao = df_filtrado.copy().reset_index(drop=False).rename(columns={"index": "_row_id"})
 df_selecao["_label"] = df_selecao.apply(build_selector_label, axis=1)
 
 selected_label = st.selectbox(
-    "Selecione uma proposição para detalhar",
+    "Selecione uma proposição",
     options=df_selecao["_label"].tolist(),
-    help="Escolha uma proposição da lista para ver detalhes completos"
+    help="Escolha uma proposição da lista para ver todos os dados detalhados",
 )
 
 registro = df_selecao.loc[df_selecao["_label"] == selected_label].iloc[0]
@@ -797,41 +719,34 @@ registro = df_selecao.loc[df_selecao["_label"] == selected_label].iloc[0]
 # ============================================================
 
 tab_resumo, tab_camara, tab_senado, tab_interno = st.tabs(
-    ["Resumo", "Câmara", "Senado", "CGNOR - Controle Interno"]
+    ["Resumo", "Câmara", "Senado", "Controle Interno"]
 )
 
 with tab_resumo:
-
-    st.markdown("### Ementas")
+    st.markdown("#### Ementas")
     if "camara_ementa" in registro.index and pd.notna(registro["camara_ementa"]) and str(registro["camara_ementa"]).strip():
-        st.markdown(f"**Ementa Câmara:** {registro['camara_ementa']}")
-
+        st.markdown(f"**Câmara:** {registro['camara_ementa']}")
     if "senado_ementa" in registro.index and pd.notna(registro["senado_ementa"]) and str(registro["senado_ementa"]).strip():
-        st.markdown(f"**Ementa Senado:** {registro['senado_ementa']}")
+        st.markdown(f"**Senado:** {registro['senado_ementa']}")
 
-    st.markdown("### Dados gerais")
-    
-    # Separar colunas de câmara e senado
+    st.markdown("#### Dados Gerais")
     camara_cols_resumo = [
-        "Projeto de Lei - Regex",        
         "camara_data_proposta_pl",
         "camara_propositor_pl",
     ]
     senado_cols_resumo = [
-        "Projeto de Lei - Regex",        
         "senado_data_proposta_pl",
         "senado_propositor_pl",
     ]
-    
     render_kv_two_columns(
         registro,
         camara_cols_resumo,
         senado_cols_resumo,
-        title_map=DISPLAY_LABELS,
+        camara_title_map=DISPLAY_LABELS_CAMARA,
+        senado_title_map=DISPLAY_LABELS_SENADO,
     )
 
-    st.markdown("### Situação atual")
-    
+    st.markdown("####  Situação Atual")
     camara_cols_situacao = [
         "camara_data_ultima_tramitacao",
         "camara_orgao_ultima_tramitacao",
@@ -844,16 +759,15 @@ with tab_resumo:
         "senado_orgao_ultima_tramitacao",
         "senado_situacao_ultima_tramitacao",
     ]
-    
     render_kv_two_columns(
         registro,
         camara_cols_situacao,
         senado_cols_situacao,
-        title_map=DISPLAY_LABELS
+        camara_title_map=DISPLAY_LABELS_CAMARA,
+        senado_title_map=DISPLAY_LABELS_SENADO,
     )
 
 with tab_camara:
-    st.markdown("### Dados da Câmara dos Deputados")
     camara_left = [
         "camara_id_proposicao",
         "camara_projeto",
@@ -878,15 +792,15 @@ with tab_camara:
         "camara_emendas",
         "camara_substitutivos",
     ]
-
     col1, col2 = st.columns(2)
     with col1:
-        render_kv(registro, camara_left, title_map=DISPLAY_LABELS)
+        st.markdown(":blue[**Identificação e Autoria**]")
+        render_kv(registro, camara_left, title_map=DISPLAY_LABELS_CAMARA)
     with col2:
-        render_kv(registro, camara_right, title_map=DISPLAY_LABELS)
+        st.markdown(":blue[**Tramitação e Parecer**]")
+        render_kv(registro, camara_right, title_map=DISPLAY_LABELS_CAMARA)
 
 with tab_senado:
-    st.markdown("### Dados do Senado Federal")
     senado_left = [
         "senado_id_processo",
         "senado_codigo_materia",
@@ -909,19 +823,17 @@ with tab_senado:
         "senado_emendas",
         "senado_substitutivos",
     ]
-
     col1, col2 = st.columns(2)
     with col1:
-        render_kv(registro, senado_left, title_map=DISPLAY_LABELS)
+        st.markdown(":green[**Identificação e Autoria**]")
+        render_kv(registro, senado_left, title_map=DISPLAY_LABELS_SENADO)
     with col2:
-        render_kv(registro, senado_right, title_map=DISPLAY_LABELS)
+        st.markdown(":green[**Tramitação e Parecer**]")
+        render_kv(registro, senado_right, title_map=DISPLAY_LABELS_SENADO)
 
 with tab_interno:
-    st.markdown("### Dados do Controle Interno CGNOR")
-
     controle_left = COLUNAS_CONTROLE_INTERNO[: len(COLUNAS_CONTROLE_INTERNO) // 2]
     controle_right = COLUNAS_CONTROLE_INTERNO[len(COLUNAS_CONTROLE_INTERNO) // 2 :]
-
     col1, col2 = st.columns(2)
     with col1:
         render_kv(registro, controle_left, title_map=DISPLAY_LABELS)
@@ -929,65 +841,27 @@ with tab_interno:
         render_kv(registro, controle_right, title_map=DISPLAY_LABELS)
 
 
-
 # ============================================================
 # DOWNLOAD DOS DADOS
 # ============================================================
 
-
 st.divider()
-st.subheader("📥 Download dos Dados")
-st.caption("Faça o download da planilha completa com todos os dados clicando no botão abaixo.")
-
-if df_filtrado.empty:
-    st.warning("Nenhum registro encontrado com os filtros aplicados.")
-    st.stop()
-
-df_resumo = build_summary_table(df_filtrado)
-
-column_config_resumo = make_link_column_config(df_resumo)
-
-# A tabela foi removida por solicitação para manter apenas o botão de download.
-# Se quiser reativar, basta descomentar o bloco abaixo.
-# st.dataframe(
-#     df_resumo,
-#     use_container_width=True,
-#     hide_index=True,
-#     column_config=column_config_resumo,
-# )
-
-st.markdown(
-    """
-    <style>
-    .download-button-container {
-        position: fixed;
-        bottom: 30px;
-        right: 40px;
-        z-index: 1000;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-st.markdown('<div class="download-button-container">', unsafe_allow_html=True)
+st.markdown("### Download dos Dados")
 
 st.download_button(
-    label="⬇️ Download em CSV",
+    label="⬇️ Baixar Planilha (CSV)",
     data=df.to_csv(index=False).encode("utf-8-sig"),
-    file_name="planilha_completa_pl.csv",
+    file_name=f"dados_proposicoes_{pd.Timestamp.now().strftime('%d-%m-%Y')}.csv",
     mime="text/csv",
-    help="Clique para baixar a planilha completa com todos os dados em formato CSV"
+    help="Download da planilha completa com todos os dados em formato CSV",
 )
-
-st.markdown("</div>", unsafe_allow_html=True)
-
+st.caption("O arquivo CSV contém todos os campos disponíveis."
+)
 
 # Rodapé
 st.markdown("""
-<hr style="height:1px;border:none;color:#ccc;background-color:#ccc;" />
-<div style="text-align: center; font-size: 0.9em; color: #666;">
-    Desenvolvido pelo <b>Núcleo de Inteligência de Dados</b> - <b>CDATA/CGINF/SEGES/MGI</b><br>
-    
+<hr style="height:1px;border:none;color:#e2e8f0;background-color:#e2e8f0;margin-top:2rem;" />
+<div class="rodape">
+    Desenvolvido pelo <b>Núcleo de Inteligência de Dados</b> · <b>CDATA/CGINF/SEGES/MGI</b>
 </div>
 """, unsafe_allow_html=True)
