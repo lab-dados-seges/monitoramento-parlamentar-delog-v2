@@ -115,16 +115,18 @@ COLUNAS_CAMARA = [
     "camara_estado",
     "camara_data_ultima_tramitacao",
     "camara_orgao_ultima_tramitacao",
+    "camara_descricao_tramitacao",
     "camara_situacao_ultima_tramitacao",
+    "camara_despacho_ultima_tramitacao",
     "camara_data_parecer_aprovado",
     "camara_orgao_parecer",
     "camara_despacho_parecer",
     "camara_link_inteiro_teor_parecer",
     "camara_link_inteiro_teor_pl",
-    "camara_link_ficha_tramitacao",    
+    "camara_link_ficha_tramitacao",
     "camara_emendas",
     "camara_substitutivos",
-    
+
 ]
 
 COLUNAS_SENADO = [
@@ -187,7 +189,9 @@ DISPLAY_LABELS = {
     "camara_estado": "(Câmara) Estado",
     "camara_data_ultima_tramitacao": "(Câmara) Data da Última Tramitação",
     "camara_orgao_ultima_tramitacao": "(Câmara) Órgão da Última Tramitação",
+    "camara_descricao_tramitacao": "(Câmara) Descrição da Tramitação",
     "camara_situacao_ultima_tramitacao": "(Câmara) Situação da Última Tramitação",
+    "camara_despacho_ultima_tramitacao": "(Câmara) Despacho da Última Tramitação",
     "camara_data_parecer_aprovado": "(Câmara) Data do Parecer Aprovado",
     "camara_orgao_parecer": "(Câmara) Órgão do Parecer",
     "camara_despacho_parecer": "(Câmara) Despacho do Parecer",
@@ -228,7 +232,9 @@ COLUNAS_RESULTADOS = [
     "camara_estado",
     "camara_data_ultima_tramitacao",
     "camara_orgao_ultima_tramitacao",
+    "camara_descricao_tramitacao",
     "camara_situacao_ultima_tramitacao",
+    "camara_despacho_ultima_tramitacao",
     "camara_data_parecer_aprovado",
     "camara_orgao_parecer",
     "camara_despacho_parecer",
@@ -829,7 +835,9 @@ with tab_resumo:
     camara_cols_situacao = [
         "camara_data_ultima_tramitacao",
         "camara_orgao_ultima_tramitacao",
+        "camara_descricao_tramitacao",
         "camara_situacao_ultima_tramitacao",
+        "camara_despacho_ultima_tramitacao",
     ]
     senado_cols_situacao = [
         "senado_data_ultima_tramitacao",
@@ -858,7 +866,9 @@ with tab_camara:
     camara_right = [
         "camara_data_ultima_tramitacao",
         "camara_orgao_ultima_tramitacao",
+        "camara_descricao_tramitacao",
         "camara_situacao_ultima_tramitacao",
+        "camara_despacho_ultima_tramitacao",
         "camara_data_parecer_aprovado",
         "camara_orgao_parecer",
         "camara_despacho_parecer",
