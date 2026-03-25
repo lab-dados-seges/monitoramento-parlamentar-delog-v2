@@ -171,8 +171,8 @@ COLUNAS_SENADO = [
 COLUNAS_CONTROLE_INTERNO = [
     "Nº",
     "Processo",
-    "Nota Técnica SEI",
-    "Anotação do Bloco Interno",
+    "Integração SEI - Processo",
+    "Integração SEI - Anotação do Bloco Interno",
     "Descrição",
     "Encaminhamento prévio - Teams/E-mail",
     "1º Encaminhamento - Rementente",
@@ -208,7 +208,7 @@ DISPLAY_LABELS = {
     "camara_estado": "(Câmara) Estado",
     "camara_data_ultima_tramitacao": "(Câmara) Data da Última Tramitação",
     "camara_orgao_ultima_tramitacao": "(Câmara) Órgão da Última Tramitação",
-    "camara_descricao_tramitacao": "(Câmara) Descrição da Tramitação",
+    "camara_descricao_tramitacao": "(Câmara) Descrição da Última Tramitação",
     "camara_situacao_ultima_tramitacao": "(Câmara) Situação da Última Tramitação",
     "camara_despacho_ultima_tramitacao": "(Câmara) Despacho da Última Tramitação",
     "camara_data_parecer_aprovado": "(Câmara) Data do Parecer Aprovado",
@@ -286,8 +286,8 @@ COLUNAS_RESULTADOS = [
     "senado_substitutivos",
     "Nº",
     "Processo",
-    "Nota Técnica SEI",
-    "Anotação do Bloco Interno",
+    "Integração SEI - Processo",
+    "Integração SEI - Anotação do Bloco Interno",
     "Descrição",
     "Encaminhamento prévio - Teams/E-mail",
     "1º Encaminhamento - Rementente",
@@ -491,8 +491,7 @@ def limpar_filtros():
 
 
 def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    st.sidebar.header("🔍 Filtros de Pesquisa")
-    st.sidebar.button("🧹 Limpar filtros", on_click=limpar_filtros, use_container_width=True)
+    st.sidebar.header("Filtros de Pesquisa")
 
     with st.sidebar.expander("📝 Busca por Texto", expanded=True):
         busca_projeto = st.text_input(
@@ -535,6 +534,8 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             options=siglas_options,
             key="filtro_sigla",
         )
+
+    st.sidebar.button("🧹 Limpar filtros", on_click=limpar_filtros, use_container_width=True)
 
     df_view = df.copy()
 
@@ -835,7 +836,7 @@ with tab_senado:
         render_kv(registro, senado_right, title_map=DISPLAY_LABELS_SENADO)
 
 with tab_interno:
-    _CAMPOS_SEI = ["Nota Técnica SEI", "Anotação do Bloco Interno"]
+    _CAMPOS_SEI = ["Integração SEI - Processo", "Integração SEI - Anotação do Bloco Interno"]
     _outros_cols = [c for c in COLUNAS_CONTROLE_INTERNO if c not in ["Nº", "Processo"] + _CAMPOS_SEI]
     controle_left = _outros_cols[: len(_outros_cols) // 2]
     controle_right = _outros_cols[len(_outros_cols) // 2 :]
