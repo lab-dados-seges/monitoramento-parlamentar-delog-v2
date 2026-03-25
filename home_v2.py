@@ -171,6 +171,8 @@ COLUNAS_SENADO = [
 COLUNAS_CONTROLE_INTERNO = [
     "Nº",
     "Processo",
+    "Nota Técnica SEI",
+    "Anotação do Bloco Interno",
     "Descrição",
     "Encaminhamento prévio - Teams/E-mail",
     "1º Encaminhamento - Rementente",
@@ -284,6 +286,8 @@ COLUNAS_RESULTADOS = [
     "senado_substitutivos",
     "Nº",
     "Processo",
+    "Nota Técnica SEI",
+    "Anotação do Bloco Interno",
     "Descrição",
     "Encaminhamento prévio - Teams/E-mail",
     "1º Encaminhamento - Rementente",
@@ -517,7 +521,6 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         origem_selecionada = st.multiselect(
             "Origem dos dados",
             options=origem_options,
-            default=[],
             key="filtro_origem",
         )
 
@@ -530,7 +533,6 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         siglas_selecionadas = st.multiselect(
             "Sigla",
             options=siglas_options,
-            default=[],
             key="filtro_sigla",
         )
 
@@ -598,7 +600,7 @@ def render_metrics(df: pd.DataFrame):
         bicameral = (origem == "Câmara + Senado").sum()
         nao_encontrado = (origem == "Não encontrado").sum()
 
-    st.markdown("### Proposições Monitoradas")
+    st.markdown("## Proposições Monitoradas")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Total", f"{total:,}")
@@ -607,9 +609,10 @@ def render_metrics(df: pd.DataFrame):
     with col3:
         st.metric("Senado", f"{senado:,}")
     with col4:
-        st.metric("Bicameral", f"{bicameral:,}")
+        st.metric("Câmara e Senado", f"{bicameral:,}")
     with col5:
         st.metric("Não encontrado", f"{nao_encontrado:,}")
+
 
 
 def build_selector_label(row: pd.Series) -> str:
@@ -832,10 +835,23 @@ with tab_senado:
         render_kv(registro, senado_right, title_map=DISPLAY_LABELS_SENADO)
 
 with tab_interno:
-    controle_left = COLUNAS_CONTROLE_INTERNO[: len(COLUNAS_CONTROLE_INTERNO) // 2]
-    controle_right = COLUNAS_CONTROLE_INTERNO[len(COLUNAS_CONTROLE_INTERNO) // 2 :]
+    _CAMPOS_SEI = ["Nota Técnica SEI", "Anotação do Bloco Interno"]
+    _outros_cols = [c for c in COLUNAS_CONTROLE_INTERNO if c not in ["Nº", "Processo"] + _CAMPOS_SEI]
+    controle_left = _outros_cols[: len(_outros_cols) // 2]
+    controle_right = _outros_cols[len(_outros_cols) // 2 :]
     col1, col2 = st.columns(2)
     with col1:
+        render_kv(registro, ["Nº", "Processo"], title_map=DISPLAY_LABELS)
+        for _campo in _CAMPOS_SEI:
+            if _campo in registro.index and pd.notna(registro[_campo]) and str(registro[_campo]).strip():
+                st.markdown(f"**{_campo}:** {registro[_campo]}")
+            else:
+                st.markdown(
+                    f'**{_campo}:** <span style="display:inline-block;padding:2px 8px;border-radius:6px;'
+                    f'background-color:#EFF6FF;color:#3B82F6;font-size:0.85em;font-weight:500;">'
+                    f'🔗 Em desenvolvimento</span>',
+                    unsafe_allow_html=True,
+                )
         render_kv(registro, controle_left, title_map=DISPLAY_LABELS)
     with col2:
         render_kv(registro, controle_right, title_map=DISPLAY_LABELS)
