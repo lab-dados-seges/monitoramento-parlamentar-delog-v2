@@ -1,0 +1,15 @@
+# Dependencias de desenvolvimento e CI
+-r requirements.txt
+
+# Testes
+pytest==8.3.4
+pytest-mock==3.14.0
+
+# Execucao do notebook no CI
+papermill==2.6.0
+jupyter==1.1.1
+nbconvert==7.16.6
+
+# Integracao SharePoint / Microsoft Graph
+msal==1.36.0
+python-dotenv==1.0.1

@@ -1,5 +1,9 @@
 # ambiente virtual
 .venv/
+venv/
+
+# variaveis de ambiente
+.env
 
 # cache Python
 __pycache__/
@@ -14,13 +18,18 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# variáveis de ambiente
-.env
 
-# saídas temporárias de notebook
+# config local do Claude Code (memoria, settings)
+.claude/
+
+# saidas temporarias de notebook
 *_out.ipynb
+*_saida.ipynb
 
-# manter controle da pasta data, mas ignorar o que não quiser versionar
+# pytest (mantidos apenas localmente)
+.pytest_cache/
+tests/
+
+# manter controle da pasta data, mas ignorar o que nao quiser versionar
 data/*
-!data/Planilha_PL_CGNOR.xlsx
 !data/df_final_bicameral.csv

@@ -2,7 +2,7 @@ name: Atualizar dados do monitoramento parlamentar
 
 on:
   schedule:
-    # 06:01 em Brasília/Palmas (UTC-3) = 09:01 UTC
+    # 06:01 em Brasilia/Palmas (UTC-3) = 09:01 UTC
     - cron: "1 9 * * *"
   workflow_dispatch:
 
@@ -20,7 +20,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      - name: Checkout do repositório
+      - name: Checkout do repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Python
@@ -29,13 +29,16 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Instalar dependências extras
+      - name: Instalar dependencias
         run: |
-          pip install papermill jupyter nbconvert
+          pip install -r requirements-dev.txt
 
-      - name: Instalar dependências do projeto
-        run: |
-          pip install -r requirements.txt
+      - name: Baixar planilha do SharePoint
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: python -m src.clientes.sharepoint
 
       - name: Executar notebook
         run: |
@@ -48,6 +51,6 @@ jobs:
           git add data/
           git diff --cached --quiet || git commit -m "Atualiza dados automaticamente"
 
-      - name: Enviar alterações
+      - name: Enviar alteracoes
         run: |
           git push
