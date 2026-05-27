@@ -136,7 +136,7 @@ class ClienteBaseApi:
         texto = str(valor).strip().replace("T", " ").replace("Z", "")
         if "." in texto:
             texto = texto.split(".")[0]
-        for formato in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        for formato in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
             try:
                 return datetime.strptime(texto, formato)
             except ValueError:
@@ -165,7 +165,6 @@ class ClienteBaseApi:
     def _buscar_chave_profunda(obj: Any, chave: str):
         """
         Busca recursiva por uma chave em dicionarios/listas aninhados.
-
         Retorna o primeiro valor encontrado ou None.
         """
         if isinstance(obj, dict):

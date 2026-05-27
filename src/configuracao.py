@@ -67,6 +67,7 @@ _CAMPOS_API = {
     "data_ultima_tramitacao": "Data da Última Tramitação",
     "orgao_ultima_tramitacao": "Órgão da Última Tramitação",
     "descricao_tramitacao": "Descrição da Última Tramitação",
+    "regime": "Regime de Tramitação",
     "situacao_ultima_tramitacao": "Situação da Última Tramitação",
     "despacho_ultima_tramitacao": "Despacho da Última Tramitação",
     "data_parecer_aprovado": "Data do Parecer Aprovado",
@@ -92,7 +93,7 @@ _SUFIXOS_LINK = {
 _SUFIXOS_CAMARA = [
     "id_proposicao", "projeto", "ementa", "data_proposta_pl", "propositor_pl",
     "partido", "estado", "data_ultima_tramitacao", "orgao_ultima_tramitacao",
-    "descricao_tramitacao", "situacao_ultima_tramitacao", "despacho_ultima_tramitacao",
+    "descricao_tramitacao", "regime", "situacao_ultima_tramitacao", "despacho_ultima_tramitacao",
     "data_parecer_aprovado", "orgao_parecer", "despacho_parecer",
     "link_inteiro_teor_parecer", "link_inteiro_teor_pl", "link_ficha_tramitacao",
     "emendas", "substitutivos",

@@ -228,6 +228,7 @@ class ClienteCamara(ClienteBaseApi):
                 "camara_descricao_tramitacao": (
                     status.get("descricaoTramitacao") or ""
                 ).strip(),
+                "camara_regime": (status.get("regime") or "").strip(),
                 "camara_situacao_ultima_tramitacao": (
                     status.get("descricaoSituacao") or ""
                 ).strip(),

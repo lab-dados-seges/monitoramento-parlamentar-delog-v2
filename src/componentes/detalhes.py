@@ -123,6 +123,7 @@ def renderizar_aba_resumo(registro: pd.Series):
     _renderizar_duas_colunas(
         registro,
         colunas_esquerda=[
+            "camara_regime",
             "camara_data_ultima_tramitacao",
             "camara_orgao_ultima_tramitacao",
             "camara_descricao_tramitacao",
@@ -166,7 +167,7 @@ def renderizar_aba_camara(registro: pd.Series):
             "camara_partido", "camara_estado",
         ],
         colunas_tramitacao=[
-            "camara_data_ultima_tramitacao", "camara_orgao_ultima_tramitacao",
+            "camara_regime","camara_data_ultima_tramitacao", "camara_orgao_ultima_tramitacao",
             "camara_descricao_tramitacao", "camara_situacao_ultima_tramitacao",
             "camara_despacho_ultima_tramitacao", "camara_data_parecer_aprovado",
             "camara_orgao_parecer", "camara_despacho_parecer",

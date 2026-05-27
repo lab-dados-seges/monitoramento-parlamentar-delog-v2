@@ -253,7 +253,7 @@ st.markdown("### Download dos Dados")
 st.download_button(
     label="Baixar Planilha (CSV)",
     data=df.to_csv(index=False).encode("utf-8-sig"),
-    file_name=f"dados_proposicoes_{pd.Timestamp.now().strftime('%d-%m-%Y')}.csv",
+    file_name=f"dados_proposicoes_{pd.Timestamp.now(tz='America/Sao_Paulo').strftime('%d-%m-%Y')}.csv",
     mime="text/csv",
     help="Download da planilha completa com todos os dados em formato CSV",
 )
