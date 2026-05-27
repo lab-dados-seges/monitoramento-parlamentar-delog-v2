@@ -9,6 +9,8 @@ Link Principal: https://monitora-parlamentar-seges-v2.streamlit.app/
 ### Principais Funcionalidades
 
 - **Consulta de Proposições**: Busca e exibição de projetos de lei com informações completas sobre tramitação, pareceres, emendas e substitutivos.
+- **Duas visões**: página de **Detalhamento** (registro a registro, com abas de Resumo, Câmara, Senado, Controle Interno e Calor Legislativo) e página de **Tabela de Proposições** (visão tabular com colunas selecionadas e links para a ficha de tramitação).
+- **Calor Legislativo**: indicador que estima a intensidade de tramitação de uma proposição na Câmara, combinando atividade recente, emendas, substitutivos, regime de tramitação e tempo desde a última movimentação.
 - **Integração com APIs Oficiais**: Dados atualizados diretamente das APIs da Câmara dos Deputados e do Senado Federal.
 - **Controle Interno**: Acompanhamento de encaminhamentos, prazos e manifestações da SEGES/MGI.
 - **Interface Interativa**: Dashboard intuitivo com filtros e visualizações detalhadas.
@@ -63,11 +65,16 @@ O aplicativo estará disponível em `http://localhost:8501`.
 
 ```
 monitoramento-parlamentar-delog-v2/
-├── app.py                          # Ponto de entrada do dashboard (streamlit run app.py)
+├── app.py                          # Ponto de entrada: configura e roteia a navegação (streamlit run app.py)
+├── pages/                          # Páginas do dashboard (st.navigation)
+│   ├── detalhamento.py             # Visão registro a registro, com abas de detalhe
+│   └── tabela_proposicoes.py       # Visão tabular com colunas selecionadas
 ├── src/                            # Código-fonte principal
 │   ├── configuracao.py             # Constantes, colunas, labels e URLs
+│   ├── interface.py                # Helpers de UI (página, cabeçalho, rodapé) e carregamento do CSV
 │   ├── analisador_legislativo.py   # Parser de referências legislativas
 │   ├── enriquecedor.py             # Orquestrador bicameral
+│   ├── calor_legislativo.py        # Cálculo do Calor Legislativo (Câmara)
 │   ├── pipeline.py                 # Pipeline de ETL (script executável)
 │   ├── clientes/                   # Clientes de APIs externas
 │   │   ├── base.py                 # Cliente HTTP base (retry + backoff)

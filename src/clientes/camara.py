@@ -6,13 +6,23 @@ Documentacao da API: https://dadosabertos.camara.leg.br/swagger/api.html
 
 import logging
 import re
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from src.clientes.base import ClienteBaseApi
 from src.configuracao import URL_API_CAMARA
 
 logger = logging.getLogger(__name__)
+
+
+# Tipos de proposicao consideradas "emendas" para o calculo de Ne
+SIGLAS_EMENDA = {
+    "EMC", "EMP", "EMS", "EMR", "EML", "EMO", "EMD",
+    "EMA", "EMRP", "EMC-A", "EMPV",
+}
+
+# Palavras-chave (lowercase) que indicam substitutivo no parecer do relator
+PALAVRAS_SUBSTITUTIVO = ("substitutivo", "texto com alterações", "texto com alteracoes")
 
 
 class ClienteCamara(ClienteBaseApi):
@@ -164,6 +174,165 @@ class ClienteCamara(ClienteBaseApi):
 
         return data, orgao, despacho, link
 
+    # ============================================================
+    # COLETA DE METRICAS PARA CALOR LEGISLATIVO
+    # ============================================================
+
+    def _contar_tramitacoes_recentes(
+        self, tramitacoes: List[dict], dias: int = 30
+    ) -> int:
+        """
+        Conta itens de tramitacao cujo dataHora esta dentro dos ultimos N dias.
+
+        Retorna 0 quando nenhum item se enquadra (a normalizacao para 0.5
+        ocorre no modulo de calculo, nao aqui).
+        """
+        if not tramitacoes:
+            return 0
+
+        limite = datetime.combine(date.today(), datetime.min.time()) - timedelta(days=dias)
+        contador = 0
+        for item in tramitacoes:
+            dt = self._parse_data_iso(item.get("dataHora"))
+            if dt and dt >= limite:
+                contador += 1
+        return contador
+
+    def _calcular_t_base(self, tramitacoes: List[dict]) -> int:
+        """
+        Retorna o numero de dias desde a ultima mudanca de descricaoSituacao.
+
+        Identifica o status atual (item com maior 'sequencia') e percorre a
+        lista de tras para frente buscando o primeiro item com descricaoSituacao
+        diferente. Se nao houver mudanca anterior, usa o primeiro evento
+        registrado.
+        """
+        if not tramitacoes:
+            return 0
+
+        # Ordena por 'sequencia' (fallback: dataHora). Maior sequencia = mais recente.
+        def _chave_ordenacao(item: dict):
+            seq = item.get("sequencia")
+            try:
+                return (0, int(seq)) if seq is not None else (1, 0)
+            except (TypeError, ValueError):
+                return (1, 0)
+
+        ordenadas = sorted(tramitacoes, key=_chave_ordenacao)
+        atual = ordenadas[-1]
+        situacao_atual = (atual.get("descricaoSituacao") or "").strip()
+
+        data_mudanca: Optional[datetime] = None
+        # Percorre de tras para frente, ignorando o ultimo (o proprio atual)
+        for item in reversed(ordenadas[:-1]):
+            situacao_item = (item.get("descricaoSituacao") or "").strip()
+            if situacao_item and situacao_item != situacao_atual:
+                data_mudanca = self._parse_data_iso(item.get("dataHora"))
+                if data_mudanca:
+                    break
+
+        # Fallback: data do primeiro evento da tramitacao
+        if data_mudanca is None:
+            data_mudanca = self._parse_data_iso(ordenadas[0].get("dataHora"))
+
+        if data_mudanca is None:
+            return 0
+
+        delta = date.today() - data_mudanca.date()
+        return max(delta.days, 0)
+
+    def _coletar_emendas_e_substitutivo(
+        self, id_proposicao: int
+    ) -> tuple[int, float]:
+        """
+        Le /proposicoes/{id}/relacionadas e calcula Ne e S.
+
+        Returns:
+            Tupla (numero_emendas, multiplicador_substitutivo).
+        """
+        try:
+            relacionadas = (
+                self._get(f"proposicoes/{id_proposicao}/relacionadas").get("dados", [])
+                or []
+            )
+        except Exception:
+            logger.warning(
+                "Falha ao buscar relacionadas da proposicao %s para calor legislativo",
+                id_proposicao,
+            )
+            return 0, 1.0
+
+        # Ne: contagem por sigla de emenda
+        numero_emendas = sum(
+            1
+            for item in relacionadas
+            if (item.get("siglaTipo") or "").strip().upper() in SIGLAS_EMENDA
+        )
+
+        # S: parecer (PRL) mais recente com palavra-chave de substitutivo
+        pareceres = [
+            item
+            for item in relacionadas
+            if (item.get("siglaTipo") or "").strip().upper() == "PRL"
+        ]
+
+        if not pareceres:
+            return numero_emendas, 1.0
+
+        def _data_apresentacao(item: dict) -> datetime:
+            dt = self._parse_data_iso(item.get("dataApresentacao"))
+            return dt or datetime.min
+
+        pareceres.sort(key=_data_apresentacao, reverse=True)
+        ementa_recente = (pareceres[0].get("ementa") or "").lower()
+
+        s_mult = 1.5 if any(p in ementa_recente for p in PALAVRAS_SUBSTITUTIVO) else 1.0
+        return numero_emendas, s_mult
+
+    def coletar_metricas_calor(
+        self, id_proposicao: int, regime: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Coleta os componentes brutos (A, Ne, S, R, T_base) usados no calculo
+        do Calor Legislativo.
+
+        Reutiliza a sessao HTTP do cliente; trata falhas de API retornando
+        defaults (0/1.0) para nao quebrar o pipeline.
+
+        Args:
+            id_proposicao: ID da proposicao na API da Camara.
+            regime: Regime de tramitacao ja conhecido (para evitar nova chamada).
+
+        Returns:
+            Dicionario com as chaves 'A', 'Ne', 'S', 'R_regime', 'T_base'
+            onde 'R_regime' contem o texto bruto do regime (o calculo do
+            multiplicador R fica a cargo do modulo de calor_legislativo).
+        """
+        # Tramitacoes (A e T_base compartilham a mesma chamada)
+        try:
+            tramitacoes = (
+                self._get(f"proposicoes/{id_proposicao}/tramitacoes").get("dados", [])
+                or []
+            )
+        except Exception:
+            logger.warning(
+                "Falha ao buscar tramitacoes da proposicao %s para calor legislativo",
+                id_proposicao,
+            )
+            tramitacoes = []
+
+        atividade = self._contar_tramitacoes_recentes(tramitacoes, dias=30)
+        t_base = self._calcular_t_base(tramitacoes)
+        emendas, s_mult = self._coletar_emendas_e_substitutivo(id_proposicao)
+
+        return {
+            "A": atividade,
+            "Ne": emendas,
+            "S": s_mult,
+            "R_regime": (regime or "").strip(),
+            "T_base": t_base,
+        }
+
     def buscar(self, sigla: str, numero: Any, ano: Any) -> Dict[str, Any]:
         """
         Busca dados completos de uma proposicao na Camara.
@@ -219,7 +388,21 @@ class ClienteCamara(ClienteBaseApi):
                 f"prop_pareceres_substitutivos_votos?idProposicao={id_prop}"
             )
 
-            return {
+            regime_str = (status.get("regime") or "").strip()
+
+            # Coleta componentes do Calor Legislativo (A, Ne, S, R, T_base)
+            from src.calor_legislativo import calcular_calor
+
+            metricas = self.coletar_metricas_calor(id_prop, regime=regime_str)
+            resultado_calor = calcular_calor(
+                atividade=metricas["A"],
+                emendas=metricas["Ne"],
+                s_substitutivo=metricas["S"],
+                regime=metricas["R_regime"],
+                t_base=metricas["T_base"],
+            )
+
+            dados_proposicao = {
                 "camara_id_proposicao": str(id_prop),
                 "camara_projeto": f"{sigla} {numero}/{ano}",
                 "camara_ementa": (proposicao.get("ementa") or "").strip(),
@@ -228,7 +411,7 @@ class ClienteCamara(ClienteBaseApi):
                 "camara_descricao_tramitacao": (
                     status.get("descricaoTramitacao") or ""
                 ).strip(),
-                "camara_regime": (status.get("regime") or "").strip(),
+                "camara_regime": regime_str,
                 "camara_situacao_ultima_tramitacao": (
                     status.get("descricaoSituacao") or ""
                 ).strip(),
@@ -246,6 +429,8 @@ class ClienteCamara(ClienteBaseApi):
                 "camara_emendas": emendas,
                 "camara_substitutivos": substitutivos,
             }
+            dados_proposicao.update(resultado_calor.como_dict_camara())
+            return dados_proposicao
 
         except Exception:
             logger.exception("Erro ao buscar %s %s/%s na Camara", sigla, numero, ano)

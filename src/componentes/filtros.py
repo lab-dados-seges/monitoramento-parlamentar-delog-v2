@@ -7,7 +7,8 @@ from typing import List
 import pandas as pd
 import streamlit as st
 
-from src.configuracao import COLUNA_ORIGEM
+from src.calor_legislativo import ICONES_NIVEL, NIVEIS_ORDENADOS
+from src.configuracao import COLUNA_NIVEL_CALOR_CAMARA, COLUNA_ORIGEM
 
 
 def _colunas_disponiveis(df: pd.DataFrame, colunas: List[str]) -> List[str]:
@@ -27,6 +28,13 @@ def limpar_filtros():
     st.session_state["filtro_busca_propositor"] = ""
     st.session_state["filtro_origem"] = []
     st.session_state["filtro_sigla"] = []
+    st.session_state["filtro_nivel_calor"] = []
+
+
+def _formatar_opcao_nivel_calor(nivel: str) -> str:
+    """Adiciona o icone do nivel para melhorar a leitura no multiselect."""
+    icone = ICONES_NIVEL.get(nivel, "")
+    return f"{icone} {nivel}".strip()
 
 
 def renderizar_filtros(df: pd.DataFrame) -> pd.DataFrame:
@@ -84,6 +92,24 @@ def renderizar_filtros(df: pd.DataFrame) -> pd.DataFrame:
             key="filtro_sigla",
         )
 
+        # Nivel de calor — restrito a niveis presentes no df (Camara)
+        niveis_disponiveis: List[str] = []
+        if COLUNA_NIVEL_CALOR_CAMARA in df.columns:
+            presentes = {
+                str(x).strip()
+                for x in df[COLUNA_NIVEL_CALOR_CAMARA].dropna().unique()
+                if str(x).strip()
+            }
+            niveis_disponiveis = [n for n in NIVEIS_ORDENADOS if n in presentes]
+
+        niveis_selecionados = st.multiselect(
+            "Nível de Calor (Câmara)",
+            options=niveis_disponiveis,
+            format_func=_formatar_opcao_nivel_calor,
+            key="filtro_nivel_calor",
+            help="Classificação calculada a partir do score Cl (Calor Legislativo).",
+        )
+
     st.sidebar.button(
         "Limpar filtros",
         on_click=limpar_filtros,
@@ -123,6 +149,11 @@ def renderizar_filtros(df: pd.DataFrame) -> pd.DataFrame:
     if siglas_selecionadas and "sigla" in df_filtrado.columns:
         df_filtrado = df_filtrado[
             df_filtrado["sigla"].astype(str).isin(siglas_selecionadas)
+        ]
+
+    if niveis_selecionados and COLUNA_NIVEL_CALOR_CAMARA in df_filtrado.columns:
+        df_filtrado = df_filtrado[
+            df_filtrado[COLUNA_NIVEL_CALOR_CAMARA].astype(str).isin(niveis_selecionados)
         ]
 
     return df_filtrado

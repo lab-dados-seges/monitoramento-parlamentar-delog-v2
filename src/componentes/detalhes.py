@@ -7,9 +7,17 @@ from typing import Dict, List, Optional
 import pandas as pd
 import streamlit as st
 
+from src.calor_legislativo import (
+    CORES_NIVEL,
+    CORES_NIVEL_FUNDO,
+    ICONES_NIVEL,
+    NIVEL_INDEFINIDO,
+)
 from src.configuracao import (
     COLUNAS_CONTROLE_INTERNO,
     COLUNAS_LINK,
+    COLUNA_NIVEL_CALOR_CAMARA,
+    COLUNA_SCORE_CALOR_CAMARA,
     ROTULOS_CAMARA,
     ROTULOS_EXIBICAO,
     ROTULOS_SENADO,
@@ -198,6 +206,154 @@ def renderizar_aba_senado(registro: pd.Series):
         mapa_rotulos=ROTULOS_SENADO,
         cor="green",
     )
+
+
+def badge_nivel_calor_html(nivel: str, score: Optional[float] = None) -> str:
+    """
+    Gera um badge HTML para o nivel de calor.
+
+    Usa o mesmo padrao visual dos chips "Em desenvolvimento" da aba de
+    Controle Interno: fundo pastel + texto na cor forte do nivel.
+    """
+    nivel_norm = nivel if nivel in CORES_NIVEL else NIVEL_INDEFINIDO
+    cor_texto = CORES_NIVEL[nivel_norm]
+    cor_fundo = CORES_NIVEL_FUNDO[nivel_norm]
+    icone = ICONES_NIVEL.get(nivel_norm, "")
+    rotulo = nivel_norm
+    if score is not None and not pd.isna(score):
+        rotulo = f"{nivel_norm} · {score:.2f}"
+    return (
+        f'<span style="display:inline-block;padding:2px 8px;border-radius:6px;'
+        f'background-color:{cor_fundo};color:{cor_texto};font-size:0.85em;'
+        f'font-weight:500;">{icone} {rotulo}</span>'
+    )
+
+
+def _valor_numerico(registro: pd.Series, coluna: str) -> Optional[float]:
+    """Retorna o valor numerico da coluna ou None se ausente/invalido."""
+    if coluna not in registro.index:
+        return None
+    valor = registro[coluna]
+    if pd.isna(valor) or valor == "":
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def renderizar_aba_calor_legislativo(registro: pd.Series):
+    """
+    Aba Calor Legislativo — exibe o score Cl e seus componentes para a Camara.
+
+    Mostra:
+      - Badge colorido do nivel (Baixo Impacto / Alerta Amarelo / Alto Impacto)
+      - Cards de metricas com cada componente (A, Ne, S, R, T_base)
+      - Formula renderizada via LaTeX
+      - Tabela de referencia dos niveis
+    """
+    # Indica casa de origem do calculo
+    st.markdown(":blue[**Câmara dos Deputados**]")
+
+    nivel = (
+        str(registro.get(COLUNA_NIVEL_CALOR_CAMARA, "")).strip()
+        if COLUNA_NIVEL_CALOR_CAMARA in registro.index
+        else ""
+    )
+    score = _valor_numerico(registro, COLUNA_SCORE_CALOR_CAMARA)
+
+    if not nivel or nivel == NIVEL_INDEFINIDO:
+        st.info(
+            "Calor Legislativo não disponível para esta proposição "
+            "(dados da Câmara ausentes ou em coleta)."
+        )
+        return
+
+    # Componentes
+    a = _valor_numerico(registro, "camara_calor_A")
+    ne = _valor_numerico(registro, "camara_calor_Ne")
+    s = _valor_numerico(registro, "camara_calor_S")
+    r = _valor_numerico(registro, "camara_calor_R")
+    t_base = _valor_numerico(registro, "camara_calor_T_base")
+
+    st.markdown(
+        f"###### Nível atual: {badge_nivel_calor_html(nivel, score)}",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("###### Componentes da Fórmula")
+
+    # CSS escopado: reduz o tamanho dos numeros e dos rotulos dos cards
+    # de metrica apenas dentro desta secao.
+    st.markdown(
+        """
+        <style>
+        .componentes-calor [data-testid="stMetricValue"] {
+            font-size: 1.4rem;
+            line-height: 1.2;
+        }
+        .componentes-calor [data-testid="stMetricLabel"] p {
+            font-size: 0.8rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="componentes-calor">', unsafe_allow_html=True)
+    col_a, col_ne, col_s, col_r, col_t = st.columns(5)
+    with col_a:
+        st.metric(
+            "A — Atividade",
+            f"{a:g}" if a is not None else "—",
+            help="Número de eventos de tramitação nos últimos 30 dias (mín. 0,5).",
+        )
+    with col_ne:
+        st.metric(
+            "Ne — Emendas",
+            f"{int(ne)}" if ne is not None else "—",
+            help="Quantidade de emendas registradas (EMC, EMP, EMS, …).",
+        )
+    with col_s:
+        st.metric(
+            "S — Substitutivo",
+            f"{s:.1f}" if s is not None else "—",
+            help="1,5 se o último parecer contém 'substitutivo' ou "
+            "'texto com alterações'; caso contrário 1,0.",
+        )
+    with col_r:
+        st.metric(
+            "R — Rito",
+            f"{r:.1f}" if r is not None else "—",
+            help="2,0 Urgência · 1,5 Prioridade · 1,0 Ordinário.",
+        )
+    with col_t:
+        st.metric(
+            "T_base — Dias",
+            f"{int(t_base)}" if t_base is not None else "—",
+            help="Dias corridos desde a última mudança de situação.",
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if score is not None:
+        st.markdown(f"**Score final Cl:** `{score:.4f}`")
+
+    # Explicacao da formula (recolhida por padrao)
+    with st.expander("Como o score é calculado", expanded=False):
+        st.latex(
+            r"C_l = \frac{A \cdot \left(1 + \dfrac{N_e}{100}\right) \cdot S \cdot R}"
+            r"{\ln(T_{base} + e)}"
+        )
+        st.markdown(
+            """
+            **Faixas de classificação:**
+
+            | Nível | Faixa de C_l | Ação recomendada |
+            |---|---|---|
+            | 🟢 **Baixo Impacto** | < 0,8 | Monitoramento mensal apenas |
+            | 🟡 **Alerta Amarelo** | 0,8 a 2,0 | Análise de conteúdo obrigatória agora |
+            | 🔴 **Alto Impacto** | > 2,0 | Prioridade total — decisão iminente |
+            """
+        )
 
 
 def renderizar_aba_controle_interno(registro: pd.Series):

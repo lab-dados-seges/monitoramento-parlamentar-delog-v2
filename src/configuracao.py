@@ -109,6 +109,28 @@ _SUFIXOS_SENADO = [
 COLUNAS_CAMARA = [f"camara_{s}" for s in _SUFIXOS_CAMARA]
 COLUNAS_SENADO = [f"senado_{s}" for s in _SUFIXOS_SENADO]
 
+# ============================================================
+# COLUNAS — CALOR LEGISLATIVO (Camara)
+# ============================================================
+
+# Sufixos calculados pelo modulo src/calor_legislativo.py.
+# Prefixadas com 'camara_calor_' para deixar claro que sao da Camara.
+_SUFIXOS_CALOR_CAMARA = ["A", "Ne", "S", "R", "T_base", "score_cl", "nivel_calor"]
+COLUNAS_CALOR_CAMARA = [f"camara_calor_{s}" for s in _SUFIXOS_CALOR_CAMARA]
+
+ROTULOS_CALOR_CAMARA: dict[str, str] = {
+    "camara_calor_A": "Atividade (A) — eventos nos últimos 30 dias",
+    "camara_calor_Ne": "Emendas (Ne)",
+    "camara_calor_S": "Multiplicador de Substitutivo (S)",
+    "camara_calor_R": "Multiplicador de Rito (R)",
+    "camara_calor_T_base": "Dias desde a última mudança de status (T_base)",
+    "camara_calor_score_cl": "Score de Calor Legislativo (Cl)",
+    "camara_calor_nivel_calor": "Nível de Calor",
+}
+
+COLUNA_NIVEL_CALOR_CAMARA = "camara_calor_nivel_calor"
+COLUNA_SCORE_CALOR_CAMARA = "camara_calor_score_cl"
+
 # ---- Derivados automaticamente ----
 COLUNAS_LINK = [f"{p}_{s}" for p in ("camara", "senado") for s in _SUFIXOS_LINK]
 
@@ -175,6 +197,7 @@ COLUNAS_ORDENACAO_PIPELINE = [
     "Projeto de LEI", "Projeto de Lei - Regex",
     "sigla", "numero", "ano", "Origem Dados",
     *COLUNAS_CAMARA,
+    *COLUNAS_CALOR_CAMARA,
     *[c for c in COLUNAS_SENADO if c not in COLUNAS_CAMARA],
 ]
 
@@ -186,6 +209,9 @@ ROTULOS_EXIBICAO: dict[str, str] = {"Projeto de Lei - Regex": "Identificação"}
 for _sufixo, _rotulo in _CAMPOS_API.items():
     ROTULOS_EXIBICAO[f"camara_{_sufixo}"] = f"(Câmara) {_rotulo}"
     ROTULOS_EXIBICAO[f"senado_{_sufixo}"] = f"(Senado) {_rotulo}"
+
+# Inclui os rotulos do Calor Legislativo (Camara) no mapa global
+ROTULOS_EXIBICAO.update(ROTULOS_CALOR_CAMARA)
 
 ROTULOS_CAMARA = {k: v.replace("(Câmara)", "").strip() for k, v in ROTULOS_EXIBICAO.items()}
 ROTULOS_SENADO = {k: v.replace("(Senado)", "").strip() for k, v in ROTULOS_EXIBICAO.items()}
