@@ -2,20 +2,25 @@ name: Atualizar dados do monitoramento parlamentar
 
 on:
   schedule:
-    # 06:01 em Brasilia/Palmas (UTC-3) = 09:01 UTC
+    # 06:01 Brasilia (UTC-3) = 09:01 UTC -> atualizacao diaria de dados
     - cron: "1 9 * * *"
+    # 06:15 Brasilia = 09:15 UTC -> acordar o app logo apos o refresh de dados
+    - cron: "15 9 * * *"
+    # 14:00 Brasilia = 17:00 UTC -> acordar o app para o periodo da tarde
+    - cron: "0 17 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: atualizar-monitoramento-parlamentar
-  cancel-in-progress: false
-
 jobs:
   atualizar-dados:
+    # Roda apenas no cron diario (06:01) ou em acionamento manual
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '1 9 * * *'
     runs-on: ubuntu-latest
+    concurrency:
+      group: atualizar-monitoramento-parlamentar
+      cancel-in-progress: false
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -54,3 +59,19 @@ jobs:
       - name: Enviar alteracoes
         run: |
           git push
+
+  manter-acordado:
+    # Roda nos crons de keep-warm (06:15 e 14:00 Brasilia) para acordar o app
+    if: github.event.schedule == '15 9 * * *' || github.event.schedule == '0 17 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping no app Streamlit (acordar)
+        run: |
+          URL="https://monitora-parlamentar-seges-v2.streamlit.app/"
+          echo "Acordando o app: $URL"
+          # Tres requisicoes espacadas dao tempo do container subir do "sono"
+          for i in 1 2 3; do
+            code=$(curl -sS -L --max-time 90 -o /dev/null -w "%{http_code}" "$URL" || echo "000")
+            echo "Tentativa $i -> HTTP $code"
+            sleep 20
+          done
