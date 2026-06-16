@@ -6,8 +6,8 @@ on:
     - cron: "1 9 * * *"
     # 06:15 Brasilia = 09:15 UTC -> acordar o app logo apos o refresh de dados
     - cron: "15 9 * * *"
-    # 14:00 Brasilia = 17:00 UTC -> acordar o app para o periodo da tarde
-    - cron: "0 17 * * *"
+    # 12:30 Brasilia = 15:30 UTC -> acordar o app para o periodo da tarde
+    - cron: "30 15 * * *"
   workflow_dispatch:
 
 permissions:
@@ -61,8 +61,8 @@ jobs:
           git push
 
   manter-acordado:
-    # Roda nos crons de keep-warm (06:15 e 14:00 Brasilia) para acordar o app
-    if: github.event.schedule == '15 9 * * *' || github.event.schedule == '0 17 * * *'
+    # Roda nos crons de keep-warm (06:15 e 12:30 Brasilia) para acordar o app
+    if: github.event.schedule == '15 9 * * *' || github.event.schedule == '30 15 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Ping no app Streamlit (acordar)
