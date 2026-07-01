@@ -89,7 +89,8 @@ def renderizar_header() -> None:
                 "API Câmara | API Senado"
             )
         with col_dir:
-            st.image("image/logo_verde_mgi.png")
+            st.caption("Ministério da Gestão e Inovação em Serviços Públicos - MGI")
+            #st.image("image/logo_verde_mgi.png")
     st.divider()
 
 

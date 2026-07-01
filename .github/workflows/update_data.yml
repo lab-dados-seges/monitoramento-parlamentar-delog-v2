@@ -46,6 +46,10 @@ jobs:
         run: python -m src.clientes.sharepoint
 
       - name: Executar notebook
+        # Execucao normal leva ~3 min. O teto evita que um dia de instabilidade
+        # nas APIs (Camara/Senado) gere uma tempestade de retries que rode ate o
+        # limite de 6h do runner. Se estourar, o job falha rapido e tenta no proximo cron.
+        timeout-minutes: 15
         run: |
           papermill tratar_dados_v2.ipynb tratar_dados_v2_saida.ipynb
 
