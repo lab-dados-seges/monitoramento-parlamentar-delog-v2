@@ -2,12 +2,8 @@ name: Atualizar dados do monitoramento parlamentar
 
 on:
   schedule:
-    # 06:01 Brasilia (UTC-3) = 09:01 UTC -> atualizacao diaria de dados
-    - cron: "1 9 * * *"
-    # 06:15 Brasilia = 09:15 UTC -> acordar o app logo apos o refresh de dados
-    - cron: "15 9 * * *"
-    # 12:30 Brasilia = 15:30 UTC -> acordar o app para o periodo da tarde
-    - cron: "30 15 * * *"
+    # 05:00 Brasilia (UTC-3) = 08:00 UTC -> atualizacao diaria de dados
+    - cron: "0 8 * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,8 +11,6 @@ permissions:
 
 jobs:
   atualizar-dados:
-    # Roda apenas no cron diario (06:01) ou em acionamento manual
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '1 9 * * *'
     runs-on: ubuntu-latest
     concurrency:
       group: atualizar-monitoramento-parlamentar
@@ -49,7 +43,7 @@ jobs:
         # Execucao normal leva ~3 min. O teto evita que um dia de instabilidade
         # nas APIs (Camara/Senado) gere uma tempestade de retries que rode ate o
         # limite de 6h do runner. Se estourar, o job falha rapido e tenta no proximo cron.
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
           papermill tratar_dados_v2.ipynb tratar_dados_v2_saida.ipynb
 
